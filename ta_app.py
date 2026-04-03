@@ -76,8 +76,13 @@ with tab2:
     original_problem = st.text_area(
         "📝 어려웠던 교재 문제나 튜토리얼 문제를 여기에 복사해 붙여넣으세요:", 
         height=150, 
-        placeholder="예시: 질량이 5kg인 물체가 마찰이 없는 30도 빗면을 따라 미끄러져 내려가고 있다. 물체의 가속도를 구하시오."
+        placeholder="예시: A 5.0 kg block slides down a frictionless incline at an angle of 30 degrees. Calculate the acceleration of the block."
     )
+
+    # ✨ 신규 기능: 유학생 맞춤형 언어 선택 옵션!
+    col_lang1, col_lang2 = st.columns(2)
+    q_lang = col_lang1.selectbox("📝 변형 문제 출제 언어", ["영어 (English)", "한국어"])
+    a_lang = col_lang2.selectbox("💡 해설 언어", ["한국어", "영어 (English)"])
 
     # 2. 문제 생성 버튼
     if st.button("🎲 이 문제와 비슷한 변형 문제 만들기", use_container_width=True, type="primary"):
@@ -85,27 +90,31 @@ with tab2:
             st.warning("먼저 원본 문제를 입력해 주세요!")
         else:
             with st.spinner("🧠 출제자의 의도를 파악하여 새로운 문제를 만들고 있습니다... ⏳"):
+                # ✨ 프롬프트에 사용자가 선택한 언어(q_lang, a_lang)를 강제 주입!
                 prompt = f"""
-                너는 미국 명문대(UCLA 등)의 이공계 기초 과목(물리, 화학 등)을 가르치는 1타 강사 조교야.
+                너는 미국 명문대의 이공계 기초 과목(물리, 화학 등)을 가르치는 1타 강사 조교야.
                 학생이 다음 문제를 연습하고 싶어해: 
                 "{original_problem}"
                 
                 이 문제와 **핵심 개념, 사용하는 공식, 난이도는 완벽하게 동일하지만, 숫자 데이터와 현실 상황(Context)을 완전히 다르게 바꾼 변형 문제**를 딱 1개 출제해 줘.
                 
+                [언어 설정 지침 - 매우 중요!]
+                - 변형 문제 언어: 반드시 {q_lang}로 출제할 것.
+                - 해설 언어: 반드시 {a_lang}로 친절하게 설명할 것.
+                
                 반드시 아래의 출력 형식을 엄격하게 지켜서 작성해. (문제와 해설 사이에 반드시 '---' 구분선을 넣어줘)
                 
                 ### 📝 AI 맞춤형 변형 문제
-                [여기에 새로운 문제 작성]
+                [여기에 {q_lang}로 새로운 문제 작성]
                 
                 ---
                 
                 ### 💡 단계별 해설 및 정답
-                [여기에 문제 푸는 과정을 1단계, 2단계... 식으로 아주 친절하게 설명하고 최종 정답 제시]
+                [여기에 문제 푸는 과정을 1단계, 2단계... 식으로 {a_lang}로 아주 친절하게 설명하고 최종 정답 제시]
                 """
                 
                 try:
                     response = model.generate_content(prompt)
-                    # 버튼을 눌러도 화면이 날아가지 않게 세션(Session)에 저장해 둠
                     st.session_state['generated_qna'] = response.text
                 except Exception as e:
                     st.error(f"문제 생성 중 에러가 발생했습니다: {e}")
@@ -115,15 +124,12 @@ with tab2:
         st.divider()
         full_text = st.session_state['generated_qna']
         
-        # '---' 구분선을 기준으로 문제 부분과 해설 부분을 쪼개기
         if "---" in full_text:
             question_part, answer_part = full_text.split("---", 1)
             
             st.markdown(question_part)
             
-            # 해설은 '토글(Expander)'에 숨겨둬서 학생이 먼저 풀어볼 수 있게 배려!
             with st.expander("👀 다 풀었나요? 정답 및 해설 확인하기 (클릭)"):
                 st.markdown(answer_part)
         else:
-            # 혹시 AI가 구분선을 빼먹었을 경우 통째로 출력
             st.markdown(full_text)
