@@ -5,63 +5,125 @@ import google.generativeai as genai
 # --- ✨ 앱 기본 설정 ---
 st.set_page_config(page_title="나만의 AI 전담 조교", page_icon="👨‍🏫", layout="centered")
 
-# --- 🔑 Gemini AI 설정 (기존 secrets.toml 활용) ---
+# --- 🔑 Gemini AI 설정 ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-3-flash-preview')
 except Exception as e:
     st.error("API 키 설정에 문제가 있습니다. secrets.toml 파일을 확인해주세요.")
 
-# --- 🖥️ 메인 화면 ---
-st.title("📚 스마트 PDF 과제 분석기")
-st.write("복잡한 강의 계획서나 과제(Lab) 매뉴얼 PDF를 올려주세요. A+를 위한 핵심만 짚어드립니다!")
+st.title("👨‍🏫 나만의 AI 전담 조교 (Personal TA)")
+st.write("학점 관리를 위한 최고의 파트너! 원하는 조교 기능을 선택하세요.")
 
-# 1. 파일 업로드 버튼
-uploaded_file = st.file_uploader("여기에 PDF 파일을 드래그 앤 드롭 하세요", type=["pdf"])
+# --- 📁 기능 분리를 위한 탭 생성 ---
+tab1, tab2 = st.tabs(["📚 스마트 PDF 분석기", "♾️ 무한 연습문제 생성기"])
 
-if uploaded_file is not None:
-    with st.spinner("👀 AI 조교가 PDF 문서를 열심히 읽고 있습니다... ⏳"):
-        try:
-            # 2. PDF 파일에서 텍스트만 쏙쏙 뽑아내기
-            pdf_reader = PyPDF2.PdfReader(uploaded_file)
-            document_text = ""
-            for page in pdf_reader.pages:
-                extracted = page.extract_text()
-                if extracted:
-                    document_text += extracted
-                    
-            st.success("문서 읽기 완료! 이제 과제 분석을 시작할 수 있습니다.")
-            
-            with st.expander("📄 추출된 원본 텍스트 슬쩍 보기"):
-                st.text(document_text[:1000] + "\n\n... (중략) ...")
+# ==========================================
+# 탭 1: 스마트 PDF 분석기 (기존 기능)
+# ==========================================
+with tab1:
+    st.subheader("📚 스마트 PDF 과제 분석기")
+    st.write("복잡한 강의 계획서나 과제(Lab) 매뉴얼 PDF를 올려주세요. A+를 위한 핵심만 짚어드립니다!")
 
-            st.divider()
+    uploaded_file = st.file_uploader("여기에 PDF 파일을 드래그 앤 드롭 하세요", type=["pdf"], key="pdf_uploader")
 
-            # 3. AI에게 분석 명령 내리기 (프롬프트 엔지니어링)
-            if st.button("🚀 AI 조교에게 A+ 공략법 물어보기", use_container_width=True, type="primary"):
-                with st.spinner("🤔 문서의 행간을 읽으며 감점 포인트를 찾는 중입니다... ✍️"):
-                    prompt = f"""
-                    너는 대학교의 깐깐하지만 학생을 진심으로 아끼는 A+ 전담 조교(TA)야.
-                    다음은 학생이 업로드한 과제 설명서(또는 강의 계획서) PDF의 텍스트야.
+    if uploaded_file is not None:
+        with st.spinner("👀 AI 조교가 PDF 문서를 열심히 읽고 있습니다... ⏳"):
+            try:
+                pdf_reader = PyPDF2.PdfReader(uploaded_file)
+                document_text = ""
+                for page in pdf_reader.pages:
+                    extracted = page.extract_text()
+                    if extracted:
+                        document_text += extracted
+                        
+                st.success("문서 읽기 완료! 이제 과제 분석을 시작할 수 있습니다.")
+                
+                with st.expander("📄 추출된 원본 텍스트 슬쩍 보기"):
+                    st.text(document_text[:1000] + "\n\n... (중략) ...")
 
-                    [문서 내용 시작]
-                    {document_text}
-                    [문서 내용 끝]
+                if st.button("🚀 AI 조교에게 A+ 공략법 물어보기", use_container_width=True, type="primary"):
+                    with st.spinner("🤔 문서의 행간을 읽으며 감점 포인트를 찾는 중입니다... ✍️"):
+                        prompt = f"""
+                        너는 대학교의 깐깐하지만 학생을 진심으로 아끼는 A+ 전담 조교(TA)야.
+                        다음은 학생이 업로드한 과제 설명서(또는 강의 계획서) PDF의 텍스트야.
 
-                    이 문서를 꼼꼼하게 분석해서, 학생이 만점을 받기 위해 반드시 알아야 할 내용들을 아래 양식에 맞춰서 한국어로 아주 명확하게 정리해 줘. 
-                    (마크다운을 사용해서 가독성 좋게 꾸며줘.)
+                        [문서 내용 시작]
+                        {document_text}
+                        [문서 내용 끝]
 
-                    1. 🚨 **핵심 데드라인 및 제출 규칙:** (언제까지, 어떤 파일 형식이나 방식으로 제출해야 하는지)
-                    2. ✅ **필수 요구사항 (Must-do):** (교수님이 절대 빠뜨리지 말라고 강조한 핵심 조건 3~5가지)
-                    3. ⚠️ **감점 주의사항 (Pitfalls):** (학생들이 흔히 실수해서 점수를 깎이는 치명적인 부분)
-                    4. 💡 **A+ 공략 꿀팁:** (이 과제의 숨겨진 의도나, 조교로서 조언해 주는 고득점 비법)
-                    """
-                    
+                        이 문서를 꼼꼼하게 분석해서, 학생이 만점을 받기 위해 반드시 알아야 할 내용들을 정리해 줘. 
+                        1. 🚨 **핵심 데드라인 및 제출 규칙**
+                        2. ✅ **필수 요구사항 (Must-do)**
+                        3. ⚠️ **감점 주의사항 (Pitfalls)**
+                        4. 💡 **A+ 공략 꿀팁**
+                        """
+                        response = model.generate_content(prompt)
+                        st.markdown("### 👨‍🏫 AI 조교의 과제 분석 리포트")
+                        st.info(response.text)
+                        
+            except Exception as e:
+                st.error(f"파일을 읽거나 분석하는 중 오류가 발생했습니다: {e}")
+
+# ==========================================
+# 탭 2: 무한 변형 연습문제 생성기 (신규 기능!)
+# ==========================================
+with tab2:
+    st.subheader("♾️ 무한 변형 연습문제 생성기")
+    st.write("도무지 풀리지 않거나 연습이 더 필요한 원본 문제를 입력해 보세요. AI가 숫자와 상황만 싹 바꿔서 새로운 문제를 무한으로 만들어 줍니다!")
+
+    # 1. 사용자로부터 원본 문제 입력받기
+    original_problem = st.text_area(
+        "📝 어려웠던 교재 문제나 튜토리얼 문제를 여기에 복사해 붙여넣으세요:", 
+        height=150, 
+        placeholder="예시: 질량이 5kg인 물체가 마찰이 없는 30도 빗면을 따라 미끄러져 내려가고 있다. 물체의 가속도를 구하시오."
+    )
+
+    # 2. 문제 생성 버튼
+    if st.button("🎲 이 문제와 비슷한 변형 문제 만들기", use_container_width=True, type="primary"):
+        if not original_problem.strip():
+            st.warning("먼저 원본 문제를 입력해 주세요!")
+        else:
+            with st.spinner("🧠 출제자의 의도를 파악하여 새로운 문제를 만들고 있습니다... ⏳"):
+                prompt = f"""
+                너는 미국 명문대(UCLA 등)의 이공계 기초 과목(물리, 화학 등)을 가르치는 1타 강사 조교야.
+                학생이 다음 문제를 연습하고 싶어해: 
+                "{original_problem}"
+                
+                이 문제와 **핵심 개념, 사용하는 공식, 난이도는 완벽하게 동일하지만, 숫자 데이터와 현실 상황(Context)을 완전히 다르게 바꾼 변형 문제**를 딱 1개 출제해 줘.
+                
+                반드시 아래의 출력 형식을 엄격하게 지켜서 작성해. (문제와 해설 사이에 반드시 '---' 구분선을 넣어줘)
+                
+                ### 📝 AI 맞춤형 변형 문제
+                [여기에 새로운 문제 작성]
+                
+                ---
+                
+                ### 💡 단계별 해설 및 정답
+                [여기에 문제 푸는 과정을 1단계, 2단계... 식으로 아주 친절하게 설명하고 최종 정답 제시]
+                """
+                
+                try:
                     response = model.generate_content(prompt)
-                    
-                    # 4. 결과 출력
-                    st.markdown("### 👨‍🏫 AI 조교의 과제 분석 리포트")
-                    st.info(response.text)
-                    
-        except Exception as e:
-            st.error(f"파일을 읽거나 분석하는 중 오류가 발생했습니다: {e}")
+                    # 버튼을 눌러도 화면이 날아가지 않게 세션(Session)에 저장해 둠
+                    st.session_state['generated_qna'] = response.text
+                except Exception as e:
+                    st.error(f"문제 생성 중 에러가 발생했습니다: {e}")
+
+    # 3. 생성된 문제와 해설을 화면에 예쁘게 출력하기
+    if 'generated_qna' in st.session_state:
+        st.divider()
+        full_text = st.session_state['generated_qna']
+        
+        # '---' 구분선을 기준으로 문제 부분과 해설 부분을 쪼개기
+        if "---" in full_text:
+            question_part, answer_part = full_text.split("---", 1)
+            
+            st.markdown(question_part)
+            
+            # 해설은 '토글(Expander)'에 숨겨둬서 학생이 먼저 풀어볼 수 있게 배려!
+            with st.expander("👀 다 풀었나요? 정답 및 해설 확인하기 (클릭)"):
+                st.markdown(answer_part)
+        else:
+            # 혹시 AI가 구분선을 빼먹었을 경우 통째로 출력
+            st.markdown(full_text)
